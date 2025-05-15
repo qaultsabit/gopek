@@ -1,6 +1,9 @@
 package gopek
 
-import "testing"
+import (
+	"errors"
+	"testing"
+)
 
 func TestMap(t *testing.T) {
 	input := []int{2, 3, 4}
@@ -154,10 +157,13 @@ func TestEitherBasic(t *testing.T) {
 	}
 }
 
-func TestEitherFlatMap(t *testing.T) {
-	right := Right[string](21)
+func TestEitherMapFlatMap(t *testing.T) {
+	right := Right[string](10)
 
-	mapped := MapEither(right, func(x int) int { return x * 2 })
+	mapped := MapEither(right, func(x int) int {
+		return x * 2
+	})
+
 	flatMapped := FlatMapEither(mapped, func(x int) Either[string, int] {
 		if x > 10 {
 			return Right[string](x + 1)
@@ -168,5 +174,44 @@ func TestEitherFlatMap(t *testing.T) {
 	val, ok := flatMapped.GetRight()
 	if !ok || val != 21 {
 		t.Errorf("Expected Right(21), got %v", val)
+	}
+}
+
+func TestResultOk(t *testing.T) {
+	res := Ok(100)
+	if res.IsLeft() {
+		t.Error("Expected Ok, got Err")
+	}
+	val, ok := res.GetRight()
+	if !ok || val != 100 {
+		t.Errorf("Expected 100, got %v", val)
+	}
+}
+
+func TestResultErr(t *testing.T) {
+	res := Err[int](errors.New("fail"))
+	if res.IsRight() {
+		t.Error("Expected Err, got Ok")
+	}
+	err, ok := res.GetLeft()
+	if !ok || err.Error() != "fail" {
+		t.Errorf("Expected 'fail', got %v", err)
+	}
+}
+
+func TestMapFlatMapResult(t *testing.T) {
+	r := Ok(5)
+
+	mapped := MapResult(r, func(x int) int { return x * 2 }) // Ok(10)
+	flat := FlatMapResult(mapped, func(x int) Result[int] {
+		if x > 5 {
+			return Ok(x + 1)
+		}
+		return Err[int](errors.New("too small"))
+	})
+
+	val := flat.GetOrElse(0)
+	if val != 11 {
+		t.Errorf("Expected 11, got %v", val)
 	}
 }
